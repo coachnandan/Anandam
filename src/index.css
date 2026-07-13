@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #f9f9ff;
+    --foreground: #111c2d;
+    
+    --primary: #006c49;
+    --primary-foreground: #ffffff;
+    
+    --secondary: #006591;
+    --secondary-foreground: #ffffff;
+    
+    --accent: #10b981;
+    --accent-foreground: #ffffff;
+    
+    --card: #ffffff;
+    --card-foreground: #111c2d;
+    
+    --muted: #bbcabf;
+    --muted-foreground: #3c4a42;
+    
+    --border: #bbcabf;
+    --input: #bbcabf;
+    
+    --success: #10b981;
+    --hover: #005236;
+    
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-[var(--border)];
+  }
+  html, body {
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-surface text-on-background;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+}
+
+/* Modern SaaS UI Utilities inspired by NutriClub Pro */
+.luxury-card {
+  @apply bg-white border border-gray-200 shadow-sm rounded-xl transition-all duration-200 hover:shadow-md;
+}
+
+.luxury-glass {
+  @apply bg-white border border-gray-200 shadow-sm rounded-xl;
+}
+
+.btn-luxury-primary {
+  @apply bg-[#006c49] text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 hover:brightness-95 active:scale-95 shadow-sm;
+}
+
+.btn-luxury-secondary {
+  @apply bg-white border border-gray-200 text-[#111c2d] px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 hover:bg-gray-50 active:scale-95 shadow-sm;
+}
+
+.text-gold {
+  color: #855300;
+}
+
+.bg-forest {
+  background-color: #006c49;
+}
+
+.bg-sage {
+  background-color: #f9f9ff;
+}
+
+.bg-off-white {
+  background-color: #f9f9ff;
+}
+
+/* Minimal Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #bbcabf;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6c7a71;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(4px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 250ms ease-out, transform 250ms ease-out;
+}

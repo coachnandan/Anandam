@@ -1,0 +1,28 @@
+config:
+  target: 'http://localhost:5174'
+  phases:
+    - duration: 10
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 20
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp up load"
+    - duration: 10
+      arrivalRate: 50
+      name: "Sustained load"
+scenarios:
+  - name: "Homepage Load"
+    flow:
+      - get:
+          url: "/"
+  - name: "Login API Mock"
+    flow:
+      - post:
+          url: "/api/mock-login"
+          json:
+            email: "test@example.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "token"
