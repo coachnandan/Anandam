@@ -52,7 +52,7 @@ export const db = {
   fetchOtherClubVisits: async () => {
     const { data, error } = await supabase
       .from('attendance')
-      .select('id, date, check_in_time, visit_reason, members!inner(id, name, mobile_number, whatsapp_number, referral, club_name)')
+      .select('id, date, check_in_time, visit_reason, marked_by, profiles!marked_by(full_name), members!inner(id, name, mobile_number, whatsapp_number, referral, club_name)')
       .eq('members.member_type', 'Other Club Member');
     if (error) {
       console.error("fetchOtherClubVisits error:", error);
@@ -68,7 +68,8 @@ export const db = {
       club_name: a.members.club_name,
       visit_date: a.date,
       visit_time: a.check_in_time,
-      reason: a.visit_reason || 'Visitation'
+      reason: a.visit_reason || 'Visitation',
+      marked_by: a.profiles?.full_name || null
     }));
   },
 
@@ -521,7 +522,7 @@ export const db = {
 
   // ─── CLOSINGS (CLOSING FOLLOW-UPS) ───
   fetchClosings: () =>
-    handleResponse(supabase.from('closing_followups').select('*'), 'fetchClosings'),
+    handleResponse(supabase.from('closing_followups').select('*, profiles:created_by(id, full_name)'), 'fetchClosings'),
 
   createClosingRecord: (record) =>
     handleResponse(supabase.from('closing_followups').insert([record]).select().single(), 'createClosingRecord'),

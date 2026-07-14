@@ -543,6 +543,7 @@ export default function Visitor() {
               <tr className="bg-offwhite/50 border-b border-beige">
                 <th className="px-8 py-5 text-[10px] font-bold text-forest uppercase tracking-widest">Full Name</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-forest uppercase tracking-widest">Referral By</th>
+                <th className="px-8 py-5 text-[10px] font-bold text-forest uppercase tracking-widest">Marked By</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-forest uppercase tracking-widest">Visit Time</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-forest uppercase tracking-widest">Shake Type</th>
                 <th className="px-8 py-5 text-[10px] font-bold text-forest uppercase tracking-widest text-right">Action</th>
@@ -551,7 +552,7 @@ export default function Visitor() {
             <tbody>
               {finalFilteredVisitorsList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center">
+                  <td colSpan={6} className="py-20 text-center">
                     <Users className="mx-auto text-beige mb-3" size={40} />
                     <p className="text-sm font-bold text-muted uppercase tracking-widest">No matching visitors found</p>
                   </td>
@@ -596,6 +597,13 @@ export default function Visitor() {
                       <td className="px-8 py-6">
                         <span className="px-2.5 py-1 bg-forest/5 text-forest border border-forest/10 rounded-lg text-xs font-bold">
                           {v.referral || 'Unknown / Walk-in'}
+                        </span>
+                      </td>
+
+                      {/* Marked By */}
+                      <td className="px-8 py-6">
+                        <span className="text-xs font-bold text-muted">
+                          {v.profiles?.full_name || 'N/A'}
                         </span>
                       </td>
 
@@ -887,6 +895,16 @@ export default function Visitor() {
                     <div>
                       <span className="block text-[8px] font-bold uppercase tracking-widest text-gray-400">WhatsApp</span>
                       <span className="font-bold text-forest">{v.whatsapp_number || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="block text-[8px] font-bold uppercase tracking-widest text-gray-400">Referral</span>
+                      <span className="font-bold text-forest">{v.referral || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[8px] font-bold uppercase tracking-widest text-gray-400">Marked By</span>
+                      <span className="font-bold text-forest">{v.profiles?.full_name || 'N/A'}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">

@@ -585,7 +585,7 @@ export default function Closing() {
 
                       {/* Marked By */}
                       <td className="px-8 py-6">
-                        <p className="font-bold text-forest text-sm">{c.markedBy || 'Auto-Workflow'}</p>
+                        <p className="font-bold text-forest text-sm">{c.profiles?.full_name || 'N/A'}</p>
                         <p className="text-[9px] text-gray-400 font-mono mt-0.5">{c.updated_at ? new Date(c.updated_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
                       </td>
 

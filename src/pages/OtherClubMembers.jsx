@@ -370,6 +370,7 @@ export default function OtherClubMembers() {
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Club Name</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Visit Date & Time</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Marked By</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Shake Options</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Options</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
@@ -378,7 +379,7 @@ export default function OtherClubMembers() {
             <tbody className="divide-y divide-gray-200">
               {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-10 text-center text-xs text-gray-400 font-medium">No records found.</td>
+                  <td colSpan="8" className="px-6 py-10 text-center text-xs text-gray-400 font-medium">No records found.</td>
                 </tr>
               ) : (
                 filteredMembers.map((member) => {
@@ -420,6 +421,9 @@ export default function OtherClubMembers() {
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald/10 text-primary border border-emerald/20">
                           {member.reason}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs font-semibold text-gray-700">
+                        {member.marked_by || 'N/A'}
                       </td>
                       {/* Shake Dropdown Column */}
                       <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
@@ -534,6 +538,12 @@ export default function OtherClubMembers() {
                     <div>
                       <span>Contact</span>
                       <span className="block text-forest">{viewingProfile.mobile || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-beige grid grid-cols-2 gap-2 text-[9px] text-gray-400 font-bold uppercase">
+                    <div>
+                      <span>Marked By</span>
+                      <span className="block text-forest">{viewingProfile.marked_by || 'N/A'}</span>
                     </div>
                   </div>
                 </div>

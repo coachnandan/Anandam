@@ -4,7 +4,7 @@ import {
   AlertTriangle, X, Search, ChevronLeft, ChevronRight,
   Clock, Phone, CreditCard, TrendingUp, ArrowUpRight,
   CheckCircle, XCircle, RefreshCw, MoreHorizontal, Eye,
-  Zap, BarChart2, Activity, DollarSign, IndianRupee
+  Zap, BarChart2, Activity, DollarSign, IndianRupee, Calendar
 } from 'lucide-react';
 import { db } from '../services/db';
 import {
@@ -765,7 +765,8 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
-  const todayStr = getISTDateString();
+  const [selectedDate, setSelectedDate] = useState(getISTDateString());
+  const todayStr = selectedDate;
 
   // ── Computed Metrics ────────────────────────────────────────────────────────
 
@@ -851,19 +852,22 @@ export default function Dashboard() {
   // ── Weekly Chart Data ────────────────────────────────────────────────────────
   const attendanceData = useMemo(() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const data = days.map(day => ({ name: day, present: 0, absent: 0, shake: 0 }));
+    const data = days.map(day => ({ name: day, present: 0, absent: 0 }));
     const startOfWeekStr = getStartOfWeekIST(todayStr);
-    memberActivityLogs.forEach(log => {
-      if (log.date >= startOfWeekStr && log.date <= todayStr) {
-        const d = new Date(log.date + 'T00:00:00');
+    
+    // Calculate the end of the week based on startOfWeekStr (which is a Monday)
+    const startD = new Date(startOfWeekStr);
+    const endD = new Date(startD);
+    endD.setDate(startD.getDate() + 6);
+    const endOfWeekStr = endD.toISOString().split('T')[0];
+
+    attendance.forEach(a => {
+      if (a.date >= startOfWeekStr && a.date <= endOfWeekStr) {
+        const d = new Date(a.date + 'T00:00:00');
         const dayObj = data[d.getDay()];
         if (dayObj) {
-          if (log.type === 'attendance') {
-            if (log.status === 'Present') dayObj.present++;
-            else dayObj.absent++;
-          } else if (log.type === 'shake') {
-            dayObj.shake++;
-          }
+          if (a.status === 'Present') dayObj.present++;
+          else dayObj.absent++;
         }
       }
     });
@@ -995,6 +999,17 @@ export default function Dashboard() {
           <p className="text-muted mt-1.5 font-medium text-sm">Real-time performance overview · {displayDate}</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="relative">
+            <input 
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <button className="flex items-center justify-center w-12 h-12 bg-white rounded-2xl border border-beige shadow-md text-forest hover:bg-forest/5 transition-colors">
+              <Calendar size={20} />
+            </button>
+          </div>
           <div className="flex items-center gap-2.5 bg-white px-5 py-3 rounded-2xl border border-beige shadow-md">
             <div className="w-2 h-2 bg-forest rounded-full animate-pulse" />
             <span className="text-xs font-bold text-forest uppercase tracking-widest">{displayTime}</span>
@@ -1051,10 +1066,10 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-lg font-bold text-forest tracking-tight">Weekly Session Flow</h3>
-              <p className="text-xs text-muted mt-1 font-medium">Current week attendance & shakes</p>
+              <p className="text-xs text-muted mt-1 font-medium">Current week attendance</p>
             </div>
             <div className="flex items-center gap-4">
-              {[['Present', '#14532D'], ['Shake', '#F59E0B'], ['Absent', '#E5E7EB']].map(([label, color]) => (
+              {[['Present', '#14532D'], ['Absent', '#E5E7EB']].map(([label, color]) => (
                 <div key={label} className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
                   <span className="text-[9px] font-bold text-muted uppercase tracking-wider">{label}</span>
@@ -1071,7 +1086,6 @@ export default function Dashboard() {
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 10, fontWeight: 700 }} />
                   <Tooltip cursor={{ fill: '#F9FAFB', radius: 8 }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.12)', fontSize: '12px' }} />
                   <Bar dataKey="present" fill="#14532D" radius={[5, 5, 0, 0]} barSize={20} />
-                  <Bar dataKey="shake" fill="#F59E0B" radius={[5, 5, 0, 0]} barSize={20} />
                   <Bar dataKey="absent" fill="#E5E7EB" radius={[5, 5, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>

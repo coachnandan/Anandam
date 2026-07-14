@@ -116,9 +116,11 @@ export const AppProvider = ({ children }) => {
           profession: v.profession,
           address: v.address,
           referred_by: v.referral,
-          visit_date: v.created_at?.split('T')[0],
-          visit_time: '12:00 PM',
-          added_by_name: v.profiles?.full_name || 'Admin'
+          visit_date: v.created_at ? getISTDateString(v.created_at) : getISTDateString(),
+          visit_time: v.created_at ? getISTTimeString(v.created_at) : '12:00 PM',
+          added_by_name: v.profiles?.full_name || 'Admin',
+          profiles: v.profiles || { full_name: v.profiles?.full_name || 'N/A' },
+          delete_requested_at: v.deleted_at
         }));
         setVisitors(mappedVisitors);
       }
@@ -242,11 +244,12 @@ export const AppProvider = ({ children }) => {
             id: c.id,
             visitor_id: c.visitor_id,
             visitorId: c.visitor_id,
-            visitor_name: c.remarks || '',
-            visit_date: c.created_at?.split('T')[0],
+            visitor_name: vis?.visitor_name || vis?.name || c.remarks || 'Unknown',
+            visit_date: c.created_at ? getISTDateString(c.created_at) : getISTDateString(),
             status: c.status,
             selected_type: c.status,
-            created_by_user_name: vis?.profiles?.full_name || 'Admin',
+            created_by_user_name: c.profiles?.full_name || 'Admin',
+            profiles: c.profiles || { full_name: c.profiles?.full_name || 'N/A' },
             timestamp: c.created_at
           };
         });
@@ -462,11 +465,12 @@ export const AppProvider = ({ children }) => {
                 id: c.id,
                 visitor_id: c.visitor_id,
                 visitorId: c.visitor_id,
-                visitor_name: c.remarks || '',
-                visit_date: c.created_at?.split('T')[0],
+                visitor_name: vis?.visitor_name || vis?.name || c.remarks || 'Unknown',
+                visit_date: c.created_at ? getISTDateString(c.created_at) : getISTDateString(),
                 status: c.status,
                 selected_type: c.status,
-                created_by_user_name: vis?.profiles?.full_name || 'Admin',
+                created_by_user_name: c.profiles?.full_name || 'Admin',
+                profiles: c.profiles || { full_name: c.profiles?.full_name || 'N/A' },
                 timestamp: c.created_at
               };
             });
@@ -1052,8 +1056,9 @@ export const AppProvider = ({ children }) => {
           profession: created.profession,
           address: created.address,
           referred_by: created.referral,
-          visit_date: created.created_at?.split('T')[0],
-          visit_time: '12:00 PM',
+          visit_date: created.created_at ? getISTDateString(created.created_at) : getISTDateString(),
+          visit_time: created.created_at ? getISTTimeString(created.created_at) : getISTTimeString(),
+          profiles: { full_name: user?.name || user?.email?.split('@')[0] || 'Admin' },
           added_by_name: user?.name || 'Admin'
         };
         setVisitors(prev => [mapped, ...prev]);
@@ -1623,7 +1628,8 @@ export const AppProvider = ({ children }) => {
         visitor_id: closingData.visitor_id || closingData.visitorId,
         visit_date: closingData.visit_date || getISTDateString(),
         status: closingData.status || 'Pending',
-        selected_type: closingData.selected_type || 'Pending'
+        selected_type: closingData.selected_type || 'Pending',
+        created_by: user?.id || null
       });
       if (created) {
         const mapped = {
@@ -1633,6 +1639,8 @@ export const AppProvider = ({ children }) => {
           visitor_name: closingData.visitor_name,
           visit_date: created.visit_date,
           status: created.status,
+          created_by: user?.name || user?.email?.split('@')[0] || 'Admin', // Optimistic name
+          profiles: { full_name: user?.name || user?.email?.split('@')[0] || 'Admin' },
           selected_type: created.selected_type,
           created_by_user_name: 'Admin',
           timestamp: created.created_at
@@ -1810,7 +1818,8 @@ export const AppProvider = ({ children }) => {
           date: memberData.visit_date || getISTDateString(),
           check_in_time: memberData.visit_time || getISTTimeString(),
           attendance_status: 'Present',
-          visit_reason: memberData.reason || 'Visitation'
+          visit_reason: memberData.reason || 'Visitation',
+          marked_by: user?.id || null
         })
         .select()
         .single();
