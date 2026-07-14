@@ -23,6 +23,9 @@ const handleResponse = async (promise, context = 'Query') => {
   }
 };
 
+// ─── In-flight guard: prevents duplicate DB inserts from rapid double-clicks ───
+const _inflightPayments = new Set();
+
 export const db = {
   // ─── CLUBS ───
   fetchClubs: () =>
@@ -364,6 +367,23 @@ export const db = {
     ),
 
   savePaymentLog: async (log) => {
+    // ── Double-click / duplicate-request guard ───────────────────────────────
+    // Build a fingerprint from the key fields that uniquely identify a payment.
+    // If the exact same fingerprint is already being processed, drop the call.
+    const fingerprint = [
+      log.memberId || log.member_id || log.visitor_id || '',
+      String(Number(log.amount) || 0),
+      log.paymentPurpose || log.payment_purpose || 'One Day Payment',
+      Math.floor(Date.now() / 3000) // 3-second dedup window
+    ].join('|');
+
+    if (_inflightPayments.has(fingerprint)) {
+      console.warn('[savePaymentLog] Duplicate call detected, skipping:', fingerprint);
+      return null;
+    }
+    _inflightPayments.add(fingerprint);
+    setTimeout(() => _inflightPayments.delete(fingerprint), 3000);
+    // ────────────────────────────────────────────────────────────────────────
     try {
       const paymentModeStr = log.paymentMode || log.payment_mode || 'Cash';
       const { data: pm } = await supabase.from('payment_methods').select('id').eq('name', paymentModeStr).maybeSingle();
@@ -428,9 +448,16 @@ export const db = {
           .eq('id', activeMembId)
           .maybeSingle();
 
-        // Only update memberships paid_amount if it's NOT the initial 'New Membership' creation log,
-        // because createMembership already writes the initial advance paid_amount.
-        if (purpose !== 'New Membership') {
+        // Only auto-update memberships.paid_amount for generic 'Subscription' payments
+        // where no other caller has already set the correct paid_amount.
+        // For 'New Membership'    → createMembership already wrote initial paid_amount
+        // For 'Due Payment'       → updateMembership already updated paid_amount
+        // For 'Membership Renewal'→ renewMembership/updateMembership already updated paid_amount
+        // For 'Extra Shake Payment'→ caller handles separately
+        const purposesWhereCallerHandlesPaidAmount = [
+          'New Membership', 'Due Payment', 'Membership Renewal', 'Extra Shake Payment'
+        ];
+        if (!purposesWhereCallerHandlesPaidAmount.includes(purpose)) {
           const currentPaid = Number(currMemb?.paid_amount) || 0;
           const newPaid = currentPaid + targetAmount;
 

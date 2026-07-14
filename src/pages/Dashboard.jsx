@@ -4,8 +4,9 @@ import {
   AlertTriangle, X, Search, ChevronLeft, ChevronRight,
   Clock, Phone, CreditCard, TrendingUp, ArrowUpRight,
   CheckCircle, XCircle, RefreshCw, MoreHorizontal, Eye,
-  Zap, BarChart2, Activity
+  Zap, BarChart2, Activity, DollarSign, IndianRupee
 } from 'lucide-react';
+import { db } from '../services/db';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, AreaChart, Area
@@ -452,24 +453,37 @@ function VisitorsPopup({ visitors, memberActivityLogs, todayStr, onClose }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function RevenuePopup({ mode, logs, total, onClose }) {
-  const { q, setQ, paged, page, setPage, totalPages, filtered } = useSearchAndPage(logs, ['memberName', 'paymentPurpose', 'staffName'], 10);
+  // Deduplicate logs aggressively by logical composite key, ignoring time completely.
+  // If a member has the exact same amount for the exact same purpose on the same day,
+  // we count it only once. This catches duplicates generated manually hours apart.
+  // Key = Member + Amount + Purpose + Date
+  const seenKeys = new Set();
+  const dedupedLogs = logs.filter(p => {
+    const key = [p.memberId || p.memberName, p.amount, p.paymentPurpose, p.date].join('|');
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  });
+
+  const dedupedTotal = dedupedLogs.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const { q, setQ, paged, page, setPage, totalPages, filtered } = useSearchAndPage(dedupedLogs, ['memberName', 'paymentPurpose', 'staffName'], 10);
   const isCash = mode === 'Cash';
 
   return (
     <DashModal
       title={`${mode} Revenue Today`}
-      subtitle={`${fmtINR(total)} from ${logs.length} transaction${logs.length !== 1 ? 's' : ''}`}
+      subtitle={`${fmtINR(dedupedTotal)} from ${dedupedLogs.length} transaction${dedupedLogs.length !== 1 ? 's' : ''}`}
       icon={isCash ? Banknote : Wifi}
       onClose={onClose}
     >
       {/* Summary banner */}
       <div className={`rounded-2xl p-5 mb-5 ${isCash ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}>
         <p className="text-white/70 text-[9px] font-bold uppercase tracking-[0.25em]">Total {mode} Collected Today</p>
-        <p className="text-4xl font-black text-white mt-1">{fmtINR(total)}</p>
+        <p className="text-4xl font-black text-white mt-1">{fmtINR(dedupedTotal)}</p>
       </div>
 
       <SearchBar q={q} setQ={setQ} placeholder="Search by member, purpose…" />
-      <DTable heads={['Member', 'Amount', 'Purpose', 'Mode', 'Date', 'Time', 'Entered By', 'Staff ID']}>
+      <DTable heads={['Member', 'Amount', 'Purpose / Plan', 'Mode', 'Date', 'Time', 'Entered By']}>
         {paged.map(p => (
           <TRow key={p.id}>
             <TD>
@@ -477,16 +491,23 @@ function RevenuePopup({ mode, logs, total, onClose }) {
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm ${isCash ? 'bg-emerald-500' : 'bg-blue-500'}`}>
                   {(p.memberName || '?').charAt(0)}
                 </div>
-                <span className="font-bold">{p.memberName || '—'}</span>
+                <div className="flex flex-col">
+                  <span className="font-bold">{p.memberName || '—'}</span>
+                  {(p.due > 0) && <span className="text-[9px] text-red-500 font-bold">Due: {fmtINR(p.due)}</span>}
+                </div>
               </div>
             </TD>
             <TD className="font-black text-forest">{fmtINR(p.amount)}</TD>
-            <TD><StatusBadge label={p.paymentPurpose || 'Payment'} color={isCash ? 'green' : 'blue'} /></TD>
+            <TD>
+              <div className="flex flex-col items-start gap-1">
+                <StatusBadge label={p.paymentPurpose || 'Payment'} color={isCash ? 'green' : 'blue'} />
+                {p.plan && p.plan !== '1 Day' && <span className="text-[10px] text-muted font-medium">{p.plan}</span>}
+              </div>
+            </TD>
             <TD><StatusBadge label={p.paymentMode || mode} color={isCash ? 'green' : 'blue'} /></TD>
             <TD className="text-muted text-xs">{fmtDate(p.date)}</TD>
             <TD className="text-muted text-xs">{p.time || fmtTime(p.timestamp)}</TD>
             <TD className="text-muted text-xs font-bold">{p.staffName || '—'}</TD>
-            <TD><StatusBadge label={p.staffId || '—'} color="muted" /></TD>
           </TRow>
         ))}
       </DTable>
@@ -560,6 +581,165 @@ function ExpiredMembershipsPopup({ expiredData, customers, onRenew, onClose }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ── POPUP 8: Due Amount ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function DueAmountPopup({ dueData, onClose, onPaymentRecorded }) {
+  const { q, setQ, paged, page, setPage, totalPages, filtered } = useSearchAndPage(dueData, ['customerName', 'plan'], 8);
+  const [paymentInputs, setPaymentInputs] = useState({});
+  const [saving, setSaving] = useState({});
+  const [savedMsg, setSavedMsg] = useState({});
+
+  const totalDue = dueData.reduce((sum, m) => sum + Number(m.dueAmount || 0), 0);
+
+  const handlePaymentChange = (id, value) => {
+    setPaymentInputs(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleRecordPayment = async (item) => {
+    const amount = Number(paymentInputs[item.id] || 0);
+    if (!amount || amount <= 0) return;
+    if (amount > Number(item.dueAmount)) return;
+
+    setSaving(prev => ({ ...prev, [item.id]: true }));
+    try {
+      // Direct Supabase update: add the payment amount to paid_amount
+      const { supabase } = await import('../services/supabaseClient');
+      const { data: membRow } = await supabase
+        .from('memberships')
+        .select('paid_amount, total_amount')
+        .eq('id', item.id)
+        .maybeSingle();
+
+      if (membRow) {
+        const newPaid = Number(membRow.paid_amount) + amount;
+        const totalAmt = Number(membRow.total_amount);
+        const newPaymentStatus = newPaid >= totalAmt ? 'Paid' : 'Partially_Paid';
+
+        await supabase
+          .from('memberships')
+          .update({
+            paid_amount: newPaid,
+            payment_status: newPaymentStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.id);
+
+        // Also log into membership_payments table
+        await supabase.from('membership_payments').insert([{
+          membership_id: item.id,
+          amount: amount,
+          payment_date: new Date().toISOString(),
+        }]);
+      }
+
+      setSavedMsg(prev => ({ ...prev, [item.id]: `₹${Number(amount).toLocaleString('en-IN')} recorded!` }));
+      setPaymentInputs(prev => ({ ...prev, [item.id]: '' }));
+      setTimeout(() => {
+        setSavedMsg(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+        onPaymentRecorded && onPaymentRecorded();
+      }, 1500);
+    } catch (err) {
+      console.error('Error recording due payment:', err);
+      setSavedMsg(prev => ({ ...prev, [item.id]: 'Error! Try again.' }));
+      setTimeout(() => setSavedMsg(prev => { const n = { ...prev }; delete n[item.id]; return n; }), 2000);
+    } finally {
+      setSaving(prev => ({ ...prev, [item.id]: false }));
+    }
+  };
+
+  return (
+    <DashModal
+      title="Due Amount"
+      subtitle={`${dueData.length} member${dueData.length !== 1 ? 's' : ''} with outstanding balance`}
+      icon={IndianRupee}
+      onClose={onClose}
+      maxWidth="max-w-5xl"
+    >
+      {/* Summary Banner */}
+      <div className="bg-gradient-to-r from-red-500 to-rose-600 rounded-2xl p-5 mb-5 flex items-center gap-4">
+        <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+          <IndianRupee size={28} className="text-white" />
+        </div>
+        <div>
+          <p className="text-white/70 text-[9px] font-bold uppercase tracking-[0.25em]">Total Outstanding Due</p>
+          <p className="text-4xl font-black text-white mt-0.5">{fmtINR(totalDue)}</p>
+          <p className="text-white/70 text-xs mt-0.5">Across {dueData.length} active membership{dueData.length !== 1 ? 's' : ''}</p>
+        </div>
+      </div>
+
+      {dueData.length === 0 ? (
+        <div className="py-16 text-center">
+          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-100">
+            <CheckCircle size={28} className="text-green-500" />
+          </div>
+          <p className="text-forest font-bold text-lg">All Dues Cleared!</p>
+          <p className="text-muted text-sm mt-1">No members have outstanding balance.</p>
+        </div>
+      ) : (
+        <>
+          <SearchBar q={q} setQ={setQ} placeholder="Search by member name or plan…" />
+          <DTable heads={['Member', 'Plan', 'Total', 'Paid', 'Due', 'Record Payment']}>
+            {paged.map(item => (
+              <TRow key={item.id}>
+                <TD>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm shrink-0">
+                      {(item.customerName || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-bold text-forest">{item.customerName}</p>
+                      <p className="text-[9px] text-muted">{item.customerContact}</p>
+                    </div>
+                  </div>
+                </TD>
+                <TD><StatusBadge label={item.plan} color="purple" /></TD>
+                <TD className="font-bold text-forest">{fmtINR(item.totalAmount)}</TD>
+                <TD className="font-bold text-emerald-600">{fmtINR(item.advanceAmount || 0)}</TD>
+                <TD>
+                  <span className="font-black text-red-600 text-base">{fmtINR(item.dueAmount)}</span>
+                </TD>
+                <TD>
+                  {savedMsg[item.id] ? (
+                    <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${savedMsg[item.id].includes('Error') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                      {savedMsg[item.id]}
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted text-xs font-bold">₹</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={item.dueAmount}
+                          value={paymentInputs[item.id] || ''}
+                          onChange={e => handlePaymentChange(item.id, e.target.value)}
+                          placeholder="Amount"
+                          className="w-28 pl-6 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-forest focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleRecordPayment(item)}
+                        disabled={saving[item.id] || !paymentInputs[item.id] || Number(paymentInputs[item.id]) <= 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {saving[item.id] ? <RefreshCw size={10} className="animate-spin" /> : <CheckCircle size={10} />}
+                        {saving[item.id] ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  )}
+                </TD>
+              </TRow>
+            ))}
+          </DTable>
+          <Paginator page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} pageSize={8} />
+        </>
+      )}
+    </DashModal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ── MAIN DASHBOARD ────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -568,7 +748,7 @@ export default function Dashboard() {
     customers = [], attendance = [], memberships = [], visitors = [],
     memberActivityLogs = [], shakeLogs = [], paymentLogs = [],
     otherClubMembers = [], closings = [],
-    getMembershipShakeStatus, dataLoading
+    getMembershipShakeStatus, dataLoading, fetchData
   } = useAppContext();
 
   const [activeModal, setActiveModal] = useState(null);
@@ -620,12 +800,23 @@ export default function Dashboard() {
     // 4. Visitors today
     const todayVisitors = visitors.filter(v => v.visit_date === todayStr);
 
-    // 5. Cash Revenue today
-    const cashLogs = paymentLogs.filter(l => l.date === todayStr && (l.paymentMode === 'Cash' || l.paymentMode === 'cash'));
+    // 5. Cash Revenue today — heavily deduplicate by logical key to prevent double-counting
+    //    from existing DB duplicate rows. We ignore time completely to catch retries/duplicates 
+    //    that happened hours apart.
+    const seenPayKeys = new Set();
+    const uniquePaymentLogs = paymentLogs.filter(l => {
+      if (Number(l.amount) <= 0) return false; // Hide ₹0 transactions from Revenue
+      const key = [l.memberId || l.memberName, l.amount, l.paymentPurpose, l.date].join('|');
+      if (seenPayKeys.has(key)) return false;
+      seenPayKeys.add(key);
+      return true;
+    });
+
+    const cashLogs = uniquePaymentLogs.filter(l => l.date === todayStr && (l.paymentMode === 'Cash' || l.paymentMode === 'cash'));
     const cashRevenue = cashLogs.reduce((s, l) => s + (Number(l.amount) || 0), 0);
 
     // 6. Online Revenue today
-    const onlineLogs = paymentLogs.filter(l => l.date === todayStr && (l.paymentMode === 'Online' || l.paymentMode === 'online' || l.paymentMode === 'UPI'));
+    const onlineLogs = uniquePaymentLogs.filter(l => l.date === todayStr && (l.paymentMode === 'Online' || l.paymentMode === 'online' || l.paymentMode === 'UPI'));
     const onlineRevenue = onlineLogs.reduce((s, l) => s + (Number(l.amount) || 0), 0);
 
     // 7. Expired memberships (shake-based)
@@ -636,12 +827,26 @@ export default function Dashboard() {
       })
       .filter(m => m.isExpired);
 
+    // 8. Members with outstanding dues
+    const membershipsWithDues = memberships
+      .filter(m => Number(m.dueAmount) > 0)
+      .map(m => {
+        const customer = customers.find(c => c.id === m.customerId);
+        return {
+          ...m,
+          customerName: customer?.name || 'Unknown',
+          customerContact: customer?.mobile_number || customer?.contact || '—',
+        };
+      })
+      .sort((a, b) => Number(b.dueAmount) - Number(a.dueAmount));
+
     return {
       activeMembers, todayAttendees,
       memberShakesToday, visitorShakesToday, otherClubShakesToday, closingShakesToday, totalShakes,
-      todayVisitors, cashLogs, cashRevenue, onlineLogs, onlineRevenue, expiredMemberships
+      todayVisitors, cashLogs, cashRevenue, onlineLogs, onlineRevenue, expiredMemberships,
+      membershipsWithDues
     };
-  }, [customers, attendance, memberships, visitors, memberActivityLogs, shakeLogs, paymentLogs, otherClubMembers, closings, todayStr, getMembershipShakeStatus]);
+  }, [customers, attendance, memberships, visitors, memberActivityLogs, shakeLogs, paymentLogs, otherClubMembers, closings, todayStr, getMembershipShakeStatus, customers]);
 
   // ── Weekly Chart Data ────────────────────────────────────────────────────────
   const attendanceData = useMemo(() => {
@@ -689,7 +894,7 @@ export default function Dashboard() {
 
   const totalRevenue = metrics.cashRevenue + metrics.onlineRevenue;
 
-  // ── KPI Card Definitions with strictly Monochromatic White, Green, and Black theme ──
+  // ── KPI Card Definitions — hover turns RED ──
   const kpiCards = [
     {
       id: 'members',
@@ -768,6 +973,17 @@ export default function Dashboard() {
       badge: 'Needs renewal',
       badgeStyle: 'bg-black/5 text-black group-hover:bg-white/10 group-hover:text-white',
     },
+    {
+      id: 'due',
+      title: 'Due Amount',
+      value: fmtINR(metrics.membershipsWithDues.reduce((sum, m) => sum + Number(m.dueAmount || 0), 0)),
+      sub: `${metrics.membershipsWithDues.length} member${metrics.membershipsWithDues.length !== 1 ? 's' : ''} with dues`,
+      icon: IndianRupee,
+      theme: 'bg-white text-black border border-beige hover:bg-red-600 hover:text-white',
+      iconColor: 'text-red-500 group-hover:text-white',
+      badge: 'Outstanding',
+      badgeStyle: 'bg-black/5 text-black group-hover:bg-white/10 group-hover:text-white',
+    },
   ];
 
   return (
@@ -809,8 +1025,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── KPI Row 2 — 3 cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      {/* ── KPI Row 2 — 4 cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {kpiCards.slice(4).map(card => (
           <KPICard
             key={card.id}
@@ -1054,6 +1270,14 @@ export default function Dashboard() {
             // Could open membership modal here in future
           }}
           onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal === 'due' && (
+        <DueAmountPopup
+          dueData={metrics.membershipsWithDues}
+          onClose={() => setActiveModal(null)}
+          onPaymentRecorded={() => fetchData && fetchData()}
         />
       )}
     </div>

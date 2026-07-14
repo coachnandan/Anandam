@@ -225,7 +225,7 @@ const StatusDropdown = ({ value, onChange, disabled }) => {
   const handleToggle = (e) => {
     e.stopPropagation();
     if (disabled) {
-      toast.warning("Cannot modify attendance records older than 24 hours.");
+      toast.warning("Cannot modify past attendance records.");
       return;
     }
     if (!open) {
@@ -297,7 +297,7 @@ const ShakeDropdown = ({ value, onChange, disabled }) => {
   const handleToggle = (e) => {
     e.stopPropagation();
     if (disabled) {
-      toast.warning("Cannot modify shake entries older than 24 hours.");
+      toast.warning("Cannot modify past shake entries.");
       return;
     }
     if (!open) {
@@ -1064,6 +1064,17 @@ export default function Attendance() {
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [showDirectOneDayModal, setShowDirectOneDayModal] = useState(false);
   const [showDirectSubModal, setShowDirectSubModal] = useState(false);
+
+  // Automatically roll over the selected date to the current date at midnight
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const liveTodayStr = getISTDateString();
+      if (todayStr !== liveTodayStr) {
+        setSelectedDate(prev => (prev === todayStr ? liveTodayStr : prev));
+      }
+    }, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [todayStr]);
 
   // Shake quantity workflow states
   const [activeShakeSelection, setActiveShakeSelection] = useState(null); // { member, shakeId, quantity }

@@ -558,25 +558,6 @@ export const AppProvider = ({ children }) => {
       }, ...prev]);
     }
 
-    // Auto-sync payment entries to the payment log
-    if (logEntry.type === 'payment') {
-      setPaymentLogs(prev => [{
-        id: entry.id + '_pay',
-        memberId: customerId,
-        memberName: logEntry.memberName || customerId,
-        amount: logEntry.amount,
-        paymentMode: logEntry.paymentMethod || 'Cash',
-        paymentPurpose: 'One Day Payment',
-        date: istDate,
-        time: istTime,
-        timestamp: entry.timestamp,
-        staffName: user?.name || 'Admin',
-        staffId: user?.id || 'EMP-001',
-        note: logEntry.note,
-        status: logEntry.status,
-      }, ...prev]);
-    }
-
     return entry;
   };
 
@@ -726,7 +707,7 @@ export const AppProvider = ({ children }) => {
   };
 
   // ── Payment Log ──────────────────────────────────────────────────────────────
-  const addPaymentLog = (entry) => {
+  const addPaymentLog = async (entry) => {
     const istDate = getISTDateString();
     const istTime = getISTTimeString();
     const log = {
@@ -741,7 +722,7 @@ export const AppProvider = ({ children }) => {
       ...entry
     };
     try {
-      db.savePaymentLog({
+      await db.savePaymentLog({
         member_id: entry.memberId,
         amount: Number(entry.amount) || 0,
         payment_mode: entry.paymentMode || 'Cash',
@@ -753,10 +734,15 @@ export const AppProvider = ({ children }) => {
         due: entry.due,
         receivedBy: user?.id
       });
+      // NOTE: Do NOT optimistically push to paymentLogs here.
+      // The Supabase realtime listener on one_day_payments / membership_payments
+      // will fire after the DB write and re-fetch the authoritative list,
+      // which prevents duplicates from appearing in the revenue sections.
     } catch (e) {
       console.warn('Supabase savePaymentLog failed:', e);
+      // On failure, fall back to optimistic update so the UI isn't blank
+      setPaymentLogs(prev => [log, ...prev]);
     }
-    setPaymentLogs(prev => [log, ...prev]);
     return log;
   };
 
