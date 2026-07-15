@@ -954,16 +954,16 @@ const MemberRow = ({ member, record, activeMembership, consumedShakes, onStatusC
   return (
     <div
       onClick={() => onRowClick(member)}
-      className="grid grid-cols-1 sm:grid-cols-[2.2fr_1.2fr_1.2fr_1.5fr_1.2fr_auto] items-center gap-3 px-5 py-4 hover:bg-green-50/40 transition-all cursor-pointer border-b border-gray-50 last:border-0 group"
+      className="grid grid-cols-2 sm:grid-cols-[2.2fr_1.2fr_1.2fr_1.5fr_1.2fr_auto] items-start sm:items-center gap-4 sm:gap-3 px-4 sm:px-5 py-4 hover:bg-green-50/40 transition-all cursor-pointer border-b border-gray-50 last:border-0 group"
     >
       {/* 1. Member Information */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0 group-hover:bg-green-100 group-hover:text-green-800 transition-all">
+      <div className="col-span-2 sm:col-span-1 flex items-start sm:items-center gap-3 min-w-0 w-full mb-1 sm:mb-0">
+        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0 group-hover:bg-green-100 group-hover:text-green-800 transition-all mt-1 sm:mt-0">
           {member.name?.charAt(0) || '?'}
         </div>
         <div className="min-w-0">
           <p className="font-bold text-gray-900 text-sm truncate">{member.name}</p>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-0.5 text-[10px] text-gray-400">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2 mt-0.5 text-[10px] text-gray-400">
             <span>{member.contact || member.mobile_number || '—'}</span>
             <span className="hidden sm:inline text-gray-300">|</span>
             <span className="truncate">Plan: {member.member_type || activeMembership?.plan || '—'}</span>
@@ -971,15 +971,27 @@ const MemberRow = ({ member, record, activeMembership, consumedShakes, onStatusC
             <span className="truncate">Consumed: {consumedShakes} / {allocated}</span>
           </div>
           {markedBy && (
-            <p className="text-[9px] font-bold mt-0.5 text-green-600">
+            <p className="text-[9px] font-bold mt-1 text-green-600 sm:hidden">
               ✓ Marked by {markedBy}
             </p>
           )}
         </div>
       </div>
 
-      {/* 2. Marked By */}
-      <div className="flex flex-col gap-1">
+      {/* 2. Present Absent */}
+      <div className="col-span-1 flex flex-col gap-1.5 sm:justify-start" onClick={e => e.stopPropagation()}>
+        <span className="sm:hidden text-[9px] font-bold text-gray-400 uppercase tracking-widest pl-1">Attendance</span>
+        <StatusDropdown value={status} onChange={val => onStatusChange(member.id, val, status)} disabled={isLocked} />
+      </div>
+
+      {/* 3. Option (Shake Type Dropdown) */}
+      <div className="col-span-1 flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
+        <span className="sm:hidden text-[9px] font-bold text-gray-400 uppercase tracking-widest pl-1">Shake Type</span>
+        <ShakeDropdown value={shake} onChange={val => onShakeChange(member.id, val)} disabled={isLocked} />
+      </div>
+
+      {/* 4. Marked By */}
+      <div className="col-span-1 flex flex-col gap-1.5 hidden sm:flex">
         {markedBy ? (
           <>
             <span className="px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-700 inline-block w-fit">
@@ -994,18 +1006,8 @@ const MemberRow = ({ member, record, activeMembership, consumedShakes, onStatusC
         )}
       </div>
 
-      {/* 3. Present Absent */}
-      <div className="flex sm:justify-start" onClick={e => e.stopPropagation()}>
-        <StatusDropdown value={status} onChange={val => onStatusChange(member.id, val, status)} disabled={isLocked} />
-      </div>
-
-      {/* 4. Option (Shake Type Dropdown) */}
-      <div className="flex" onClick={e => e.stopPropagation()}>
-        <ShakeDropdown value={shake} onChange={val => onShakeChange(member.id, val)} disabled={isLocked} />
-      </div>
-
       {/* 5. Pay */}
-      <div className="flex flex-col gap-1" onClick={e => e.stopPropagation()}>
+      <div className="col-span-2 sm:col-span-1 flex flex-col gap-1.5 mt-2 sm:mt-0" onClick={e => e.stopPropagation()}>
         <button
           onClick={() => {
             if (isLocked) {
@@ -1014,14 +1016,14 @@ const MemberRow = ({ member, record, activeMembership, consumedShakes, onStatusC
             }
             onPayClick(member);
           }}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-[10px] font-bold uppercase tracking-wider transition-all ${
-            isLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 hover:bg-green-600 hover:text-white text-gray-600 font-bold'
+          className={`flex items-center justify-center sm:justify-start gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-[10px] font-bold uppercase tracking-wider transition-all w-full sm:w-auto ${
+            isLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 hover:bg-green-600 hover:text-white text-gray-600'
           }`}
         >
           <CreditCard size={11} /> Pay
         </button>
         {todayOneDayPayment && (
-          <div className="flex flex-col gap-0.5 px-2 py-1.5 rounded-lg border border-orange-200 bg-orange-50/60 text-[8px] font-bold text-orange-700 leading-tight">
+          <div className="flex flex-col gap-0.5 px-2 py-1.5 rounded-lg border border-orange-200 bg-orange-50/60 text-[8px] font-bold text-orange-700 leading-tight w-full sm:w-auto">
             <span>1-Day: ₹{(todayOneDayPayment.amount || 0).toLocaleString('en-IN')} / ₹{(todayOneDayPayment.totalAmount || 250).toLocaleString('en-IN')}</span>
             {todayOneDayPayment.due > 0 && (
               <span className="text-red-600">Due: ₹{todayOneDayPayment.due.toLocaleString('en-IN')}</span>
