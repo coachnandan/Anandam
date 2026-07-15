@@ -286,7 +286,7 @@ export default function Visitor() {
   const referralGrouping = useMemo(() => {
     const groups = {};
     monthVisitors.forEach(v => {
-      const ref = v.referral || 'Unknown / Walk-in';
+      const ref = v.referred_by || v.referral || 'Unknown / Walk-in';
       groups[ref] = (groups[ref] || 0) + 1;
     });
     return Object.entries(groups)
@@ -315,7 +315,7 @@ export default function Visitor() {
     }
 
     if (selectedReferralFilter) {
-      list = list.filter(v => (v.referral || 'Unknown / Walk-in') === selectedReferralFilter);
+      list = list.filter(v => (v.referred_by || v.referral || 'Unknown / Walk-in') === selectedReferralFilter);
     }
 
     if (searchTerm.trim()) {
@@ -386,7 +386,7 @@ export default function Visitor() {
     setValue('gender', v.gender || '');
     setValue('profession', v.profession || '');
     setValue('custom_profession', v.profession || '');
-    setValue('referral', v.referral || '');
+    setValue('referral', v.referred_by || v.referral || '');
     setValue('address', v.address || '');
     setIsAddModalOpen(true);
   };
@@ -596,7 +596,7 @@ export default function Visitor() {
                       {/* Referral */}
                       <td className="px-8 py-6">
                         <span className="px-2.5 py-1 bg-forest/5 text-forest border border-forest/10 rounded-lg text-xs font-bold">
-                          {v.referral || 'Unknown / Walk-in'}
+                          {v.referred_by || v.referral || 'Unknown / Walk-in'}
                         </span>
                       </td>
 
