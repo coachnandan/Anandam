@@ -175,8 +175,17 @@ export default function Memberships() {
     getConsumedShakes,
     addPaymentLog,
     addActivityLog,
-    membershipHistory = []
+    membershipHistory = [],
+    fetchData
   } = useAppContext();
+
+  const [historicalLoaded, setHistoricalLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!historicalLoaded && fetchData) {
+      fetchData({ loadHistorical: true }).then(() => setHistoricalLoaded(true));
+    }
+  }, [historicalLoaded, fetchData]);
 
   // State variables
   const [filter, setFilter] = useState('All');

@@ -1050,7 +1050,16 @@ export default function Attendance() {
     addMembership,
     renewMembership,
     user,
+    fetchData,
   } = useAppContext();
+
+  const [historicalLoaded, setHistoricalLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!historicalLoaded && fetchData) {
+      fetchData({ loadHistorical: true }).then(() => setHistoricalLoaded(true));
+    }
+  }, [historicalLoaded, fetchData]);
 
   const todayStr = getISTDateString();
   const [selectedDate, setSelectedDate] = useState(() => getISTDateString());

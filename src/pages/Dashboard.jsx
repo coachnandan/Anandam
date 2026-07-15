@@ -998,7 +998,7 @@ export default function Dashboard() {
           <h1 className="text-4xl font-black text-forest tracking-tight">Dashboard</h1>
           <p className="text-muted mt-1.5 font-medium text-sm">Real-time performance overview · {displayDate}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 mt-4 lg:mt-0">
           <div className="relative">
             <input 
               type="date"
@@ -1014,7 +1014,7 @@ export default function Dashboard() {
             <div className="w-2 h-2 bg-forest rounded-full animate-pulse" />
             <span className="text-xs font-bold text-forest uppercase tracking-widest">{displayTime}</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-3 bg-forest text-white border border-forest rounded-2xl shadow-lg shadow-forest/20">
+          <div className="flex items-center gap-2 px-4 py-3 bg-forest text-white border border-forest rounded-2xl shadow-lg shadow-forest/20 w-full sm:w-auto mt-2 sm:mt-0 justify-center">
             <TrendingUp size={14} className="text-white" />
             <span className="text-xs font-bold text-white uppercase tracking-widest">{fmtINR(totalRevenue)} Today</span>
           </div>

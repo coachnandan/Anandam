@@ -49,11 +49,15 @@ export const db = {
     handleResponse(supabase.from('members').update({ deleted_at: new Date().toISOString(), deleted_by: adminId }).eq('id', id).select().single(), 'deleteCustomer'),
 
   // ─── OTHER CLUB VISITS (ATTENDANCE JOINED WITH MEMBERS) ───
-  fetchOtherClubVisits: async () => {
-    const { data, error } = await supabase
+  fetchOtherClubVisits: async ({ limit = null, startDate = null } = {}) => {
+    let query = supabase
       .from('attendance')
       .select('id, date, check_in_time, visit_reason, marked_by, profiles!marked_by(full_name), members!inner(id, name, mobile_number, whatsapp_number, referral, club_name)')
       .eq('members.member_type', 'Other Club Member');
+    if (startDate) query = query.gte('date', startDate);
+    if (limit) query = query.limit(limit);
+    
+    const { data, error } = await query;
     if (error) {
       console.error("fetchOtherClubVisits error:", error);
       throw error;
@@ -83,8 +87,11 @@ export const db = {
     handleResponse(supabase.from('attendance').delete().eq('id', id), 'deleteOtherClubVisit'),
 
   // ─── VISITORS ───
-  fetchVisitors: () =>
-    handleResponse(supabase.from('visitors').select('*, profiles:created_by(id, full_name)').is('deleted_at', null).order('created_at', { ascending: false }), 'fetchVisitors'),
+  fetchVisitors: ({ limit = null } = {}) => {
+    let query = supabase.from('visitors').select('*, profiles:created_by(id, full_name)').is('deleted_at', null).order('created_at', { ascending: false });
+    if (limit) query = query.limit(limit);
+    return handleResponse(query, 'fetchVisitors');
+  },
 
 
   createVisitor: (visitor) =>
@@ -115,15 +122,20 @@ export const db = {
   logMembershipHistory: (historyRecord) =>
     handleResponse(supabase.from('membership_history').insert([historyRecord]).select().single(), 'logMembershipHistory'),
 
-  fetchMembershipHistory: () =>
-    handleResponse(supabase.from('membership_history').select('*').order('created_at', { ascending: false }), 'fetchMembershipHistory'),
+  fetchMembershipHistory: ({ limit = null } = {}) => {
+    let query = supabase.from('membership_history').select('*').order('created_at', { ascending: false });
+    if (limit) query = query.limit(limit);
+    return handleResponse(query, 'fetchMembershipHistory');
+  },
 
   // ─── ATTENDANCE ───
-  fetchAttendance: async () => {
+  fetchAttendance: async ({ startDate = null } = {}) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('attendance')
         .select('id, member_id, date, attendance_status, check_in_time, marked_by, profiles(full_name)');
+      if (startDate) query = query.gte('date', startDate);
+      const { data, error } = await query;
       if (error) {
         console.error('Supabase DB operation failed [fetchAttendance]:', error);
         throw error;
@@ -150,9 +162,9 @@ export const db = {
     ),
 
   // ─── SHAKE LOGS (CENTRALIZED SHAKE_LOGS) ───
-  fetchShakeLogs: async () => {
+  fetchShakeLogs: async ({ startDate = null } = {}) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('shake_logs')
         .select(`
           id,
@@ -168,6 +180,8 @@ export const db = {
           shake_types:shake_type_id (name),
           profiles:marked_by (full_name)
         `);
+      if (startDate) query = query.gte('date', startDate);
+      const { data, error } = await query;
       if (error) {
         console.error("Supabase DB operation failed [fetchShakeLogs]:", error);
         throw error;
@@ -304,12 +318,17 @@ export const db = {
   },
 
   // ─── PAYMENT LOGS (MERGED LEDGER & TRANSACTIONS) ───
-  fetchPaymentLogs: async () => {
+  fetchPaymentLogs: async ({ startDate = null } = {}) => {
     try {
-      const [oneDayRes, membPayRes] = await Promise.all([
-        supabase.from('one_day_payments').select('*, payment_methods(name), members(name), visitors(visitor_name), profiles:received_by(full_name)').order('payment_date', { ascending: false }),
-        supabase.from('membership_payments').select('*, memberships(*, members(id, name)), payment_methods(name), profiles:received_by(full_name)').order('payment_date', { ascending: false })
-      ]);
+      let q1 = supabase.from('one_day_payments').select('*, payment_methods(name), members(name), visitors(visitor_name), profiles:received_by(full_name)').order('payment_date', { ascending: false });
+      let q2 = supabase.from('membership_payments').select('*, memberships(*, members(id, name)), payment_methods(name), profiles:received_by(full_name)').order('payment_date', { ascending: false });
+      
+      if (startDate) {
+        q1 = q1.gte('payment_date', startDate + 'T00:00:00Z');
+        q2 = q2.gte('payment_date', startDate + 'T00:00:00Z');
+      }
+
+      const [oneDayRes, membPayRes] = await Promise.all([q1, q2]);
 
       if (oneDayRes.error) throw oneDayRes.error;
       if (membPayRes.error) throw membPayRes.error;
@@ -359,13 +378,13 @@ export const db = {
     }
   },
 
-  fetchMembershipPayments: () =>
-    handleResponse(
-      supabase.from('membership_payments')
+  fetchMembershipPayments: ({ startDate = null } = {}) => {
+      let query = supabase.from('membership_payments')
         .select('*, memberships(*, members(id, name)), payment_methods(name)')
-        .order('payment_date', { ascending: false }),
-      'fetchMembershipPayments'
-    ),
+        .order('payment_date', { ascending: false });
+      if (startDate) query = query.gte('payment_date', startDate + 'T00:00:00Z');
+      return handleResponse(query, 'fetchMembershipPayments');
+  },
 
   savePaymentLog: async (log) => {
     // ── Double-click / duplicate-request guard ───────────────────────────────
@@ -486,8 +505,11 @@ export const db = {
   },
 
   // ─── ACTIVITY/AUDIT LOGS ───
-  fetchActivityLogs: () =>
-    handleResponse(supabase.from('activity_logs').select('*, profiles(id, full_name)').order('timestamp', { ascending: false }), 'fetchActivityLogs'),
+  fetchActivityLogs: ({ limit = null } = {}) => {
+    let query = supabase.from('activity_logs').select('*, profiles(id, full_name)').order('timestamp', { ascending: false });
+    if (limit) query = query.limit(limit);
+    return handleResponse(query, 'fetchActivityLogs');
+  },
 
   saveActivityLog: (log) => {
     // Map human-readable action strings to public.record_action_type ENUM
@@ -521,8 +543,11 @@ export const db = {
   },
 
   // ─── CLOSINGS (CLOSING FOLLOW-UPS) ───
-  fetchClosings: () =>
-    handleResponse(supabase.from('closing_followups').select('*, profiles:created_by(id, full_name)'), 'fetchClosings'),
+  fetchClosings: ({ startDate = null } = {}) => {
+    let query = supabase.from('closing_followups').select('*, profiles:created_by(id, full_name)');
+    if (startDate) query = query.gte('visit_date', startDate);
+    return handleResponse(query, 'fetchClosings');
+  },
 
   createClosingRecord: (record) =>
     handleResponse(supabase.from('closing_followups').insert([record]).select().single(), 'createClosingRecord'),

@@ -161,31 +161,7 @@ const Header = ({ toggleSidebar }) => {
   );
 };
 
-const MobileNav = () => {
-  const { user } = useAppContext();
-  const navItems = adminNavItems;
 
-  return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[45] px-6 py-3 pb-safe">
-      <div className="flex items-center justify-around">
-        {navItems.slice(0, 4).map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 transition-colors ${
-                isActive ? 'text-forest' : 'text-gray-500 hover:text-gray-900'
-              }`
-            }
-          >
-            <item.icon size={20} />
-            <span className="text-[10px] font-medium">{item.name}</span>
-          </NavLink>
-        ))}
-      </div>
-    </nav>
-  );
-};
 
 export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -207,14 +183,14 @@ export default function MainLayout() {
       <div className="lg:ml-64 flex flex-col h-screen transition-all duration-300">
         <Header toggleSidebar={toggleSidebar} />
         
-        <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-24 lg:pb-12 relative">
+        <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-12 relative">
           <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
             <Outlet />
           </div>
         </main>
       </div>
 
-      <MobileNav />
+
 
       {isSidebarOpen && (
         <div 

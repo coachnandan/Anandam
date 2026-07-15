@@ -58,8 +58,17 @@ export default function Closing() {
     addActivityLog,
     memberActivityLogs = [],
     updateVisitorShake,
-    user
+    user,
+    fetchData
   } = useAppContext();
+
+  const [historicalLoaded, setHistoricalLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!historicalLoaded && fetchData) {
+      fetchData({ loadHistorical: true }).then(() => setHistoricalLoaded(true));
+    }
+  }, [historicalLoaded, fetchData]);
 
   // Date selection states
   const todayStr = getISTDateString();

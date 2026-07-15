@@ -4,8 +4,15 @@ import { useAppContext } from '../context/AppContext';
 import { TrendingUp, Users, Calendar, DollarSign, Award, Activity } from 'lucide-react';
 
 export default function Analytics() {
-  const { customers, memberships, attendance } = useAppContext();
+  const { customers, attendance, memberships, shakeLogs, paymentLogs, visitors, otherClubMembers, closings, fetchData } = useAppContext();
   const [layoutReady, setLayoutReady] = useState(false);
+  const [historicalLoaded, setHistoricalLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!historicalLoaded && fetchData) {
+      fetchData({ loadHistorical: true }).then(() => setHistoricalLoaded(true));
+    }
+  }, [historicalLoaded, fetchData]);
 
   useEffect(() => {
     const id = setTimeout(() => setLayoutReady(true), 500);

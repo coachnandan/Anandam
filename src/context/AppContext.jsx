@@ -37,6 +37,7 @@ export const AppProvider = ({ children }) => {
 
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
+  const [hasLoadedHistorical, setHasLoadedHistorical] = useState(false);
 
   const customersRef = useRef([]);
   const visitorsRef = useRef([]);
@@ -51,9 +52,15 @@ export const AppProvider = ({ children }) => {
 
   // ── Supabase Live Fetch & Initial Sync ───────────────────────────────────────
   // ── Supabase Live Fetch & Initial Sync ───────────────────────────────────────
-  const loadSupabaseData = async () => {
+  const loadSupabaseData = async ({ loadHistorical = false } = {}) => {
+    if (loadHistorical && hasLoadedHistorical) return;
     try {
       setDataLoading(true);
+      if (loadHistorical) setHasLoadedHistorical(true);
+      const today = getISTDateString();
+      const dateFilter = loadHistorical ? null : today;
+      const limitFilter = loadHistorical ? null : 50;
+
       const [
         dbCust,
         dbMemb,
@@ -70,16 +77,16 @@ export const AppProvider = ({ children }) => {
       ] = await Promise.all([
         db.fetchCustomers().catch(e => { console.error("fetchCustomers error:", e); return []; }),
         db.fetchMemberships().catch(e => { console.error("fetchMemberships error:", e); return []; }),
-        db.fetchAttendance().catch(e => { console.error("fetchAttendance error:", e); return []; }),
-        db.fetchShakeLogs().catch(e => { console.error("fetchShakeLogs error:", e); return []; }),
-        db.fetchPaymentLogs().catch(e => { console.error("fetchPaymentLogs error:", e); return []; }),
-        db.fetchActivityLogs().catch(e => { console.error("fetchActivityLogs error:", e); return []; }),
-        db.fetchClosings().catch(e => { console.error("fetchClosings error:", e); return []; }),
-        db.fetchVisitors().catch(e => { console.error("fetchVisitors error:", e); return []; }),
-        db.fetchMembershipPayments().catch(e => { console.error("fetchMembershipPayments error:", e); return []; }),
+        db.fetchAttendance({ startDate: dateFilter }).catch(e => { console.error("fetchAttendance error:", e); return []; }),
+        db.fetchShakeLogs({ startDate: dateFilter }).catch(e => { console.error("fetchShakeLogs error:", e); return []; }),
+        db.fetchPaymentLogs({ startDate: dateFilter }).catch(e => { console.error("fetchPaymentLogs error:", e); return []; }),
+        db.fetchActivityLogs({ limit: limitFilter }).catch(e => { console.error("fetchActivityLogs error:", e); return []; }),
+        db.fetchClosings({ startDate: dateFilter }).catch(e => { console.error("fetchClosings error:", e); return []; }),
+        db.fetchVisitors({ limit: limitFilter }).catch(e => { console.error("fetchVisitors error:", e); return []; }),
+        db.fetchMembershipPayments({ startDate: dateFilter }).catch(e => { console.error("fetchMembershipPayments error:", e); return []; }),
         db.fetchSettings().catch(e => { console.error("fetchSettings error:", e); return []; }),
-        db.fetchOtherClubVisits().catch(e => { console.error("fetchOtherClubVisits error:", e); return []; }),
-        db.fetchMembershipHistory().catch(e => { console.error("fetchMembershipHistory error:", e); return []; })
+        db.fetchOtherClubVisits({ startDate: dateFilter }).catch(e => { console.error("fetchOtherClubVisits error:", e); return []; }),
+        db.fetchMembershipHistory({ limit: limitFilter }).catch(e => { console.error("fetchMembershipHistory error:", e); return []; })
       ]);
 
       if (dbCust) {
