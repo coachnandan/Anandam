@@ -126,7 +126,7 @@ export default function Closing() {
         mobile_number: '',
         visit_time: '',
         visit_date: c.visit_date,
-        referral: '',
+        referred_by: '',
       };
       
       const shakeType = getVisitorShake(visitor.id, visitor.visit_date);
@@ -188,7 +188,7 @@ export default function Closing() {
       list = list.filter(c =>
         c.visitor_name?.toLowerCase().includes(q) ||
         c.visitor?.mobile_number?.includes(q) ||
-        (c.visitor?.referral || '').toLowerCase().includes(q)
+        (c.visitor?.referred_by || '').toLowerCase().includes(q)
       );
     }
 
@@ -315,7 +315,7 @@ export default function Closing() {
         gender: v.visitor.gender,
         profession: v.visitor.profession,
         member_type: data.member_type,
-        referred_by: v.visitor.referral || 'Walk-in',
+        referred_by: v.visitor.referred_by || 'Walk-in',
         address: v.visitor.address,
         plan: data.plan,
         custom_duration: data.custom_duration,
@@ -358,7 +358,7 @@ export default function Closing() {
       dob: c.visitor.dob,
       gender: c.visitor.gender,
       profession: c.visitor.profession,
-      referred_by: c.visitor.referral || 'Walk-in',
+      referred_by: c.visitor.referred_by || 'Walk-in',
       address: c.visitor.address,
       joining_date: getISTDateString(),
     };
@@ -588,13 +588,13 @@ export default function Closing() {
                       {/* Referral By */}
                       <td className="px-8 py-6">
                         <span className="px-2.5 py-1 bg-forest/5 text-forest border border-forest/10 rounded-lg text-xs font-bold">
-                          {c.visitor?.referral || 'Walk-in'}
+                          {c.visitor?.referred_by || 'Walk-in'}
                         </span>
                       </td>
 
                       {/* Marked By */}
                       <td className="px-8 py-6">
-                        <p className="font-bold text-forest text-sm">{c.profiles?.full_name || 'N/A'}</p>
+                        <p className="font-bold text-forest text-sm">{c.visitor?.added_by_name || c.profiles?.full_name || 'N/A'}</p>
                         <p className="text-[9px] text-gray-400 font-mono mt-0.5">{c.updated_at ? new Date(c.updated_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
                       </td>
 
