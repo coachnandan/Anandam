@@ -359,11 +359,26 @@ const ShakeDropdown = ({ value, onChange, disabled }) => {
 // ─── ShakeBreakdownModal ──────────────────────────────────────────────────────
 const ShakeBreakdownModal = ({ shakeLogs, todayStr, onClose }) => {
   const todayShakes = shakeLogs.filter(s => s.date === todayStr);
+  
   const typeCounts = SHAKE_TYPES.map(st => ({
     ...st,
-    count: todayShakes.filter(s => s.item === st.id || s.item === st.label).length,
+    count: todayShakes.filter(s => s.item === st.id || s.item === st.label).reduce((sum, s) => sum + (Number(s.quantity) || 1), 0),
   }));
-  const sorted = [...todayShakes].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  // Aggregate shakes by personId
+  const aggregatedShakes = Object.values(todayShakes.reduce((acc, s) => {
+    const key = s.personId || s.personName; // fallback to name if ID is missing
+    if (!acc[key]) {
+      acc[key] = { ...s, quantity: Number(s.quantity) || 1 };
+    } else {
+      acc[key].quantity += (Number(s.quantity) || 1);
+      acc[key].time = s.time; // keep latest time
+      acc[key].item = s.item; // keep latest item
+    }
+    return acc;
+  }, {}));
+
+  const sorted = aggregatedShakes.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -407,7 +422,14 @@ const ShakeBreakdownModal = ({ shakeLogs, todayStr, onClose }) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-gray-900 text-sm">{s.personName}</p>
-                        {st && <ShakeBadge id={st.id} />}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {st && <ShakeBadge id={st.id} />}
+                          {s.quantity > 1 && (
+                            <span className="text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                              x{s.quantity}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-xs font-bold text-gray-700">{s.time}</p>

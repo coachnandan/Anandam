@@ -323,16 +323,29 @@ function ShakePopup({ memberShakes, visitorShakes, otherClubShakes, closingShake
 
   if (drillSource) {
     const cat = categories.find(c => c.key === drillSource);
+    
+    // Group shakes by person
+    const aggregatedShakes = Object.values(cat.data.reduce((acc, s) => {
+      const key = s.personId || s.customerId || s.personName || s.customerName;
+      if (!acc[key]) {
+        acc[key] = { ...s, quantity: Number(s.quantity) || 1 };
+      } else {
+        acc[key].quantity += (Number(s.quantity) || 1);
+        acc[key].time = s.time; // keep latest time
+      }
+      return acc;
+    }, {})).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
     return (
       <DashModal title={`${cat.label} — Shake Detail`} subtitle={`${cat.count} shake${cat.count !== 1 ? 's' : ''} today`} icon={Coffee} onClose={onClose} maxWidth="max-w-3xl">
         <button onClick={() => setDrillSource(null)} className="flex items-center gap-2 text-xs font-bold text-forest hover:text-sage transition-colors mb-5">
           <ChevronLeft size={14} /> Back to Overview
         </button>
-        {cat.data.length === 0 ? (
+        {aggregatedShakes.length === 0 ? (
           <div className="text-center py-12 text-muted font-medium">No individual records available for this category.</div>
         ) : (
           <DTable heads={['Person', 'Item', 'Time', 'Staff']}>
-            {cat.data.map((s, i) => (
+            {aggregatedShakes.map((s, i) => (
               <TRow key={i}>
                 <TD>
                   <div className="flex items-center gap-3">
@@ -342,7 +355,16 @@ function ShakePopup({ memberShakes, visitorShakes, otherClubShakes, closingShake
                     <span className="font-bold">{s.personName || s.customerName || s.customerId || '—'}</span>
                   </div>
                 </TD>
-                <TD><StatusBadge label={s.item || 'Shake'} color="green" /></TD>
+                <TD>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge label={s.item || 'Shake'} color="green" />
+                    {s.quantity > 1 && (
+                      <span className="text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                        x{s.quantity}
+                      </span>
+                    )}
+                  </div>
+                </TD>
                 <TD className="text-muted text-xs">{s.time || fmtTime(s.timestamp)}</TD>
                 <TD className="text-muted text-xs">{s.markedBy || s.staffName || '—'}</TD>
               </TRow>

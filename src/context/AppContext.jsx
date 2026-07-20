@@ -929,6 +929,18 @@ export const AppProvider = ({ children }) => {
   // ── Customer CRUD ────────────────────────────────────────────────────────────
   const addCustomer = async (customerData) => {
     try {
+      const newName = (customerData.name || customerData.full_name || '').trim().toLowerCase();
+      const newContact = (customerData.mobile_number || customerData.contact || '').trim();
+      
+      const isDuplicate = customers.some(c => 
+        c.name?.trim().toLowerCase() === newName && 
+        (c.mobile_number || c.contact || '').trim() === newContact
+      );
+      
+      if (isDuplicate) {
+        throw new Error("A member with this name and contact number already exists.");
+      }
+
       const { data: club } = await supabase.from('clubs').select('id').limit(1).maybeSingle();
       const clubId = club?.id || '747b0e1b-b4bf-4277-bf30-4e33db33cd84';
 
@@ -1037,6 +1049,18 @@ export const AppProvider = ({ children }) => {
   // ── Visitor CRUD ─────────────────────────────────────────────────────────────
   const addVisitor = async (visitorData) => {
     try {
+      const newName = (visitorData.visitor_name || visitorData.name || '').trim().toLowerCase();
+      const newContact = (visitorData.mobile_number || '').trim();
+
+      const isDuplicate = visitors.some(v => 
+        (v.visitor_name || v.name)?.trim().toLowerCase() === newName && 
+        (v.mobile_number || '').trim() === newContact
+      );
+      
+      if (isDuplicate) {
+        throw new Error("A visitor with this name and contact number already exists.");
+      }
+
       const { data: club } = await supabase.from('clubs').select('id').limit(1).maybeSingle();
       const clubId = club?.id || '747b0e1b-b4bf-4277-bf30-4e33db33cd84';
 
@@ -1781,6 +1805,18 @@ export const AppProvider = ({ children }) => {
   // ── Other Club Members ───────────────────────────────────────────────────────
   const addOtherClubMember = async (memberData) => {
     try {
+      const newName = (memberData.name || '').trim().toLowerCase();
+      const newContact = (memberData.mobile || '').trim();
+
+      const isDuplicate = otherClubMembers.some(m => 
+        m.name?.trim().toLowerCase() === newName && 
+        (m.mobile || m.mobile_number || '').trim() === newContact
+      );
+
+      if (isDuplicate) {
+        throw new Error("An other club member with this name and contact number already exists.");
+      }
+
       // 1. Check if member already exists by mobile
       let memberId;
       const { data: existing } = await supabase
